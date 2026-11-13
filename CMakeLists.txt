@@ -31,6 +31,17 @@ message("Build type: " ${CMAKE_BUILD_TYPE})
 # Enable CMake support for ASM and C languages
 enable_language(C ASM)
 
+# Format every C source before compiling the project.
+find_program(CLANG_FORMAT_EXECUTABLE clang-format REQUIRED)
+file(GLOB_RECURSE PROJECT_C_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/*.c"
+)
+add_custom_target(format_c_sources ALL
+    COMMAND ${CLANG_FORMAT_EXECUTABLE} -style=LLVM -i ${PROJECT_C_SOURCES}
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+    VERBATIM
+)
+
 # Create an executable object type
 add_executable(${CMAKE_PROJECT_NAME})
 
@@ -66,3 +77,6 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
 )
+
+add_dependencies(${CMAKE_PROJECT_NAME} format_c_sources)
+add_dependencies(STM32_Drivers format_c_sources)
