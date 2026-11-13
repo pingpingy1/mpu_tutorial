@@ -1,0 +1,22 @@
+# CMake and STM32 build output
+/build/
+/.cache/
+
+# Generated firmware artifacts
+*.elf
+*.hex
+*.bin
+*.map
+*.list
+*.lst
+*.su
+
+# STM32CubeMX temporary files
+mx.scratch/
+
+# IDE metadata
+/.settings/
+/.metadata/
+.cproject
+.project
+.vscode/
