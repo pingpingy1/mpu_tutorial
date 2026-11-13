@@ -18,6 +18,8 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f1xx_hal.h"
+#include "stm32f1xx_hal_gpio.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -26,7 +28,14 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+typedef struct {
+    GPIO_TypeDef* port;
+    uint16_t pin;
+} Pin_t;
+typedef enum {
+    STATE_A,
+    STATE_B
+} State_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -42,14 +51,97 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+Pin_t LEDs[] = {
+    {LED0_GPIO_Port, LED0_Pin},
+    {LED1_GPIO_Port, LED1_Pin},
+    {LED2_GPIO_Port, LED2_Pin},
+    {LED3_GPIO_Port, LED3_Pin},
+    {LED4_GPIO_Port, LED4_Pin},
+    {LED5_GPIO_Port, LED5_Pin},
+    {LED6_GPIO_Port, LED6_Pin},
+    {LED7_GPIO_Port, LED7_Pin}
+};
+#define LED_CNT 8
+State_t state = STATE_B;
+int a_curr = 0;
+int a_dir = 1;
+int b_side = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
+int LED_On(int leds) {
+  if (leds < 0 || leds >= (1 << LED_CNT)) {
+    return -1;
+  }
+  for (int i = 0; i < LED_CNT; i++) {
+    if (leds & (1 << i)) {
+      HAL_GPIO_WritePin(LEDs[i].port, LEDs[i].pin, GPIO_PIN_SET);
+    }
+  }
+  return 0;
+};
+int LED_Off(int leds) {
+  if (leds < 0 || leds >= (1 << LED_CNT)) {
+    return -1;
+  }
+  for (int i = 0; i < LED_CNT; i++) {
+    if (leds & (1 << i)) {
+      HAL_GPIO_WritePin(LEDs[i].port, LEDs[i].pin, GPIO_PIN_RESET);
+    }
+  }
+  return 0;
+};
+int LED_Toggle(int leds) {
+  if (leds < 0 || leds >= (1 << LED_CNT)) {
+    return -1;
+  }
+  for (int i = 0; i < LED_CNT; i++) {
+    if (leds & (1 << i)) {
+      HAL_GPIO_TogglePin(LEDs[i].port, LEDs[i].pin);
+    }
+  }
+  return 0;
+};
+int LED_Set(int leds) {
+  if (leds < 0 || leds >= (1 << LED_CNT)) {
+    return -1;
+  }
+  for (int i = 0; i < LED_CNT; i++) {
+    if (leds & (1 << i)) {
+      HAL_GPIO_WritePin(LEDs[i].port, LEDs[i].pin, GPIO_PIN_SET);
+    } else {
+      HAL_GPIO_WritePin(LEDs[i].port, LEDs[i].pin, GPIO_PIN_RESET);
+    }
+  }
+  return 0;
 
+}
+
+void switch_to_a() {
+  LED_Set(1 << a_curr);
+}
+void ambulance_a() {
+  LED_Off(1 << a_curr);
+  a_curr += a_dir;
+  LED_On(1 << a_curr);
+  if ((a_curr == LED_CNT - 1 && a_dir == 1) || (a_curr == 0 && a_dir == -1)) {
+    a_dir *= -1;
+  }
+  HAL_Delay(50);  
+}
+
+void switch_to_b() {
+  LED_On(0xF << (4 * b_side));
+  LED_Off(0xF << (4 * (1 - b_side)));
+}
+void ambulance_b() {
+  LED_Toggle(0xFF);
+  b_side = 1 - b_side;
+  HAL_Delay(500);
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -87,7 +179,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   /* USER CODE BEGIN 2 */
-
+  switch_to_b();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -95,7 +187,16 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-
+    switch (state) {
+    case STATE_A:
+      ambulance_a();
+      break;
+    case STATE_B:
+      ambulance_b();
+      break;
+    default:
+      return -1;
+    }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -155,6 +256,7 @@ static void MX_GPIO_Init(void)
   /* GPIO Ports Clock Enable */
   __HAL_RCC_GPIOC_CLK_ENABLE();
   __HAL_RCC_GPIOD_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
@@ -170,6 +272,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : SW2_Pin */
+  GPIO_InitStruct.Pin = SW2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(SW2_GPIO_Port, &GPIO_InitStruct);
+
   /*Configure GPIO pins : LED0_Pin LED1_Pin LED2_Pin LED3_Pin */
   GPIO_InitStruct.Pin = LED0_Pin|LED1_Pin|LED2_Pin|LED3_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -177,13 +285,41 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
+  /*Configure GPIO pin : SW1_Pin */
+  GPIO_InitStruct.Pin = SW1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(SW1_GPIO_Port, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI2_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI2_IRQn);
+
+  HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
-
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+  switch (GPIO_Pin) {
+    case SW1_Pin:
+      switch (state) {
+        case STATE_A:
+          state = STATE_B;
+          switch_to_b();
+          break;
+        case STATE_B:
+          state = STATE_A;
+          switch_to_a();
+          break;
+      }
+      break;
+  }
+}
 /* USER CODE END 4 */
 
 /**
