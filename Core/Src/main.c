@@ -52,7 +52,7 @@ Pin_t LEDs[] = {{LED0_GPIO_Port, LED0_Pin}, {LED1_GPIO_Port, LED1_Pin},
                 {LED4_GPIO_Port, LED4_Pin}, {LED5_GPIO_Port, LED5_Pin},
                 {LED6_GPIO_Port, LED6_Pin}, {LED7_GPIO_Port, LED7_Pin}};
 #define LED_CNT 8
-State_t state = STATE_B;
+State_t state = STATE_B, incoming_state = STATE_B;
 int a_curr = 0;
 int a_dir = 1;
 int b_side = 0;
@@ -175,7 +175,30 @@ int main(void) {
   /* USER CODE BEGIN WHILE */
   while (1) {
     /* USER CODE END WHILE */
-
+    if (incoming_state == state) {
+      switch (state) {
+      case STATE_A:
+        ambulance_a();
+        break;
+      case STATE_B:
+        ambulance_b();
+        break;
+      default:
+        return -1;
+      }
+    } else {
+      state = incoming_state;
+      switch (state) {
+      case STATE_A:
+        switch_to_a();
+        break;
+      case STATE_B:
+        switch_to_b();
+        break;
+      default:
+        return -1;
+      }
+    }
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
@@ -316,12 +339,10 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   case SW1_Pin:
     switch (state) {
     case STATE_A:
-      state = STATE_B;
-      switch_to_b();
+      incoming_state = STATE_B;
       break;
     case STATE_B:
-      state = STATE_A;
-      switch_to_a();
+      incoming_state = STATE_A;
       break;
     }
     break;
