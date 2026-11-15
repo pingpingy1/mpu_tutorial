@@ -18,6 +18,9 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "stm32f103xb.h"
+#include "stm32f1xx_hal_uart.h"
+#include <stdint.h>
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -56,6 +59,24 @@ State_t state = STATE_B, incoming_state = STATE_B;
 int a_curr = 0;
 int a_dir = 1;
 int b_side = 0;
+uint8_t RxBuffer[1];
+uint8_t message_1[] = "\r\n\r\n*********************************\r\n";
+uint8_t message_2[] = "Ambulance Emergency Light Control\r\n";
+uint8_t message_3[] = "*********************************\r\n\r\n";
+uint8_t message_4[] = "1. Set to [Ambulance_A] mode\r\n";
+uint8_t message_5[] = "2. Set to [Ambulance_B] mode\r\n";
+uint8_t message_6[] = "3. Set to [Off] mode\r\n";
+uint8_t message_7[] = "4. Set to [On] mode\r\n";
+uint8_t message_8[] = "5. Display current mode\r\n\r\n";
+uint8_t message_9[] = "Type number : ";
+uint8_t message_10[] = "\r\n\r\nNow, [Ambulance_A] mode\r\n";
+uint8_t message_11[] = "\r\n\r\nNow, [Ambulance_B] mode\r\n";
+uint8_t message_12[] = "\r\n\r\nNow, [Off] mode\r\n";
+uint8_t message_13[] = "\r\n\r\nNow, [On] mode\r\n";
+uint8_t message_14[] = "\r\n\r\nCurrent mode is [Ambulance_A] mode\r\n";
+uint8_t message_15[] = "\r\n\r\nCurrent mode is [Ambulance_B] mode\r\n";
+uint8_t message_16[] = "\r\n\r\nCurrent mode is [Off] mode\r\n";
+uint8_t message_17[] = "\r\n\r\nCurrent mode is [On] mode\r\n";
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -110,7 +131,22 @@ int LED_Set(int leds) {
   return 0;
 }
 
-void switch_to_a() { LED_Set(1 << a_curr); }
+void display_menu() {
+  HAL_UART_Transmit(&huart2, message_1, sizeof(message_1), 100);
+  HAL_UART_Transmit(&huart2, message_2, sizeof(message_2), 100);
+  HAL_UART_Transmit(&huart2, message_3, sizeof(message_3), 100);
+  HAL_UART_Transmit(&huart2, message_4, sizeof(message_4), 100);
+  HAL_UART_Transmit(&huart2, message_5, sizeof(message_5), 100);
+  HAL_UART_Transmit(&huart2, message_6, sizeof(message_6), 100);
+  HAL_UART_Transmit(&huart2, message_7, sizeof(message_7), 100);
+  HAL_UART_Transmit(&huart2, message_8, sizeof(message_8), 100);
+  HAL_UART_Transmit(&huart2, message_9, sizeof(message_9), 100);
+}
+
+void switch_to_a() {
+  LED_Set(1 << a_curr);
+  display_menu();
+}
 void ambulance_a() {
   LED_Off(1 << a_curr);
   a_curr += a_dir;
@@ -124,6 +160,7 @@ void ambulance_a() {
 void switch_to_b() {
   LED_On(0xF << (4 * b_side));
   LED_Off(0xF << (4 * (1 - b_side)));
+  display_menu();
 }
 void ambulance_b() {
   LED_Toggle(0xFF);
@@ -169,6 +206,7 @@ int main(void) {
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   switch_to_b();
+  HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -347,6 +385,18 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     }
     break;
   }
+}
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+  HAL_UART_Transmit(&huart2, RxBuffer, 1, 100);
+  switch (RxBuffer[0]) {
+  case '1':
+    incoming_state = STATE_A;
+    break;
+  case '2':
+    incoming_state = STATE_B;
+    break;
+  }
+  HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
 }
 /* USER CODE END 4 */
 
