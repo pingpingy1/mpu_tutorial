@@ -387,7 +387,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   }
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  HAL_UART_Transmit(&huart2, RxBuffer, 1, 100);
+  HAL_UART_Transmit(huart, RxBuffer, 1, 100);
   switch (RxBuffer[0]) {
   case '1':
     incoming_state = STATE_A;
@@ -396,7 +396,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     incoming_state = STATE_B;
     break;
   }
-  HAL_UART_Receive_IT(&huart2, RxBuffer, 1);
+  HAL_UART_Receive_IT(huart, RxBuffer, 1);
 }
 /* USER CODE END 4 */
 
