@@ -19,6 +19,7 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "stm32f103xb.h"
+#include "stm32f1xx_hal.h"
 #include "stm32f1xx_hal_uart.h"
 #include <stdint.h>
 
@@ -33,7 +34,7 @@ typedef struct {
   GPIO_TypeDef *port;
   uint16_t pin;
 } Pin_t;
-typedef enum { STATE_A, STATE_B } State_t;
+typedef enum { STATE_A, STATE_B, STATE_ON, STATE_OFF } State_t;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -143,10 +144,7 @@ void display_menu() {
   HAL_UART_Transmit(&huart2, message_9, sizeof(message_9), 100);
 }
 
-void switch_to_a() {
-  LED_Set(1 << a_curr);
-  display_menu();
-}
+void switch_to_a() { LED_Set(1 << a_curr); }
 void ambulance_a() {
   LED_Off(1 << a_curr);
   a_curr += a_dir;
@@ -160,12 +158,28 @@ void ambulance_a() {
 void switch_to_b() {
   LED_On(0xF << (4 * b_side));
   LED_Off(0xF << (4 * (1 - b_side)));
-  display_menu();
 }
 void ambulance_b() {
   LED_Toggle(0xFF);
   b_side = 1 - b_side;
   HAL_Delay(500);
+}
+
+void print_state() {
+  switch (state) {
+  case STATE_A:
+    HAL_UART_Transmit(&huart2, message_14, sizeof(message_14), 100);
+    break;
+  case STATE_B:
+    HAL_UART_Transmit(&huart2, message_15, sizeof(message_15), 100);
+    break;
+  case STATE_OFF:
+    HAL_UART_Transmit(&huart2, message_16, sizeof(message_16), 100);
+    break;
+  case STATE_ON:
+    HAL_UART_Transmit(&huart2, message_17, sizeof(message_17), 100);
+    break;
+  }
 }
 /* USER CODE END PFP */
 
@@ -221,6 +235,14 @@ int main(void) {
       case STATE_B:
         ambulance_b();
         break;
+      case STATE_ON:
+        LED_On(0xFF);
+        HAL_Delay(100);
+        break;
+      case STATE_OFF:
+        LED_Off(0xFF);
+        HAL_Delay(100);
+        break;
       default:
         return -1;
       }
@@ -232,6 +254,12 @@ int main(void) {
         break;
       case STATE_B:
         switch_to_b();
+        break;
+      case STATE_ON:
+        LED_On(0xFF);
+        break;
+      case STATE_OFF:
+        LED_Off(0xFF);
         break;
       default:
         return -1;
@@ -382,20 +410,40 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     case STATE_B:
       incoming_state = STATE_A;
       break;
+    default:
+      break;
     }
     break;
   }
 }
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-  HAL_UART_Transmit(huart, RxBuffer, 1, 100);
   switch (RxBuffer[0]) {
   case '1':
+    HAL_UART_Transmit(huart, RxBuffer, 1, 100);
+    HAL_UART_Transmit(huart, message_10, sizeof(message_10), 100);
     incoming_state = STATE_A;
     break;
   case '2':
+    HAL_UART_Transmit(huart, RxBuffer, 1, 100);
+    HAL_UART_Transmit(huart, message_11, sizeof(message_11), 100);
     incoming_state = STATE_B;
     break;
+  case '3':
+    HAL_UART_Transmit(huart, RxBuffer, 1, 100);
+    HAL_UART_Transmit(huart, message_12, sizeof(message_12), 100);
+    incoming_state = STATE_OFF;
+    break;
+  case '4':
+    HAL_UART_Transmit(huart, RxBuffer, 1, 100);
+    HAL_UART_Transmit(huart, message_13, sizeof(message_13), 100);
+    incoming_state = STATE_ON;
+    break;
+  case '5':
+    HAL_UART_Transmit(huart, RxBuffer, 1, 100);
+    print_state();
+    break;
   }
+  display_menu();
   HAL_UART_Receive_IT(huart, RxBuffer, 1);
 }
 /* USER CODE END 4 */
